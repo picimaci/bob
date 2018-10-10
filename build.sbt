@@ -9,6 +9,7 @@ lazy val bob =
     .settings(settings)
     .settings(
       libraryDependencies ++= Seq(
+        library.fastparse,
         library.scalaCheck % Test,
         library.utest      % Test
       )
@@ -21,9 +22,11 @@ lazy val bob =
 lazy val library =
   new {
     object Version {
+      val fastparse  = "1.0.0"
       val scalaCheck = "1.14.0"
       val utest      = "0.6.6"
     }
+    val fastparse  = "com.lihaoyi"    %% "fastparse"  % Version.fastparse
     val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.scalaCheck
     val utest      = "com.lihaoyi"    %% "utest"      % Version.utest
   }
@@ -39,8 +42,8 @@ lazy val settings =
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.12.7",
-    organization := "default",
-    organizationName := "brano",
+    organization := "Branislav Lazic",
+    organizationName := "Branislav Lazic",
     startYear := Some(2018),
     licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
     scalacOptions ++= Seq(
