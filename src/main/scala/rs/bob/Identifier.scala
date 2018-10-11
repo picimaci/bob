@@ -20,8 +20,22 @@ object Identifier {
   val AssignmentChar     = "="
   val OpeningParentheses = "("
   val ClosingParentheses = ")"
-  val AddChar            = "+"
-  val SubtractChar       = "-"
-  val DivideChar         = "/"
-  val MultiplyChar       = "*"
+
+  object InfixOperator {
+    val EqualsOp           = "=="
+    val AddOp              = "+"
+    val SubtractOp         = "-"
+    val DivideOp           = "/"
+    val MultiplyOp         = "*"
+    val GreaterThanOp      = ">"
+    val GreaterThanEqualOp = ">="
+    val LessThanOp         = "<"
+    val LessThanEqualOp    = "<="
+    val AndOp              = "and"
+    val OrOp               = "or"
+  }
+
+  object PrefixOperator {
+    val NotOp = "not"
+  }
 }

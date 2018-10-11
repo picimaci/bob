@@ -15,18 +15,18 @@
  */
 
 package rs.bob
-
 import scala.io.StdIn
 
 object Main {
 
   def main(args: Array[String]): Unit = {
     import Parser._
+    import Interpreter._
     println("Welcome to Bob REPL!")
     var line = ""
-    while (line != "quit()") {
+    while (line != "quit()".trim) {
       line = StdIn.readLine(">> ")
-      println(parseLines(Seq(line)))
+      if (line != "quit()".trim) evaluate(parseLines(Seq(line)))
     }
   }
 }

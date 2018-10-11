@@ -18,4 +18,6 @@ package rs.bob
 
 object Keyword {
   val Print = "print"
+  val True  = "true"
+  val False = "false"
 }

@@ -17,13 +17,18 @@
 package rs.bob
 
 object Ast {
-  sealed trait Node
-  case class VarNode(ident: String) extends Node
-  case class ExprNode(value: Int)   extends Node
+  sealed trait Node {
+    val value: Any
+  }
+  case class VarNode(value: String)          extends Node
+  case class NumericExprNode(value: Int)     extends Node
+  case class BooleanExprNode(value: Boolean) extends Node
 
   sealed trait Statement
-  case class AssignmentStatement(varNode: VarNode, exprNode: ExprNode) extends Statement
-  case class PrintStatement(node: Node)                                extends Statement
+  case class ErrorStatement(error: String)                     extends Statement
+  case class ExprStatement(node: Node)                         extends Statement
+  case class AssignmentStatement(varNode: VarNode, node: Node) extends Statement
+  case class PrintStatement(node: Node)                        extends Statement
 
   case class Program(statements: Vector[Statement])
 }
