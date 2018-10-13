@@ -21,12 +21,11 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     import Parser._
-    import Interpreter._
     println("Welcome to Bob REPL!")
     var line = ""
     while (line != "quit()".trim) {
       line = StdIn.readLine(">> ")
-      if (line != "quit()".trim) evaluate(parseLines(Seq(line)))
+      if (line != "quit()".trim) println(parseLines(Seq(line)))
     }
   }
 }

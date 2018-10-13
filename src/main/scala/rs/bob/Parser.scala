@@ -16,7 +16,7 @@
 
 package rs.bob
 
-import fastparse.{ WhitespaceApi, all, core }
+import fastparse.WhitespaceApi
 import fastparse.all._
 
 object Parser {
@@ -33,99 +33,73 @@ object Parser {
 
   private val eol: P[Unit] = P("\n" | "" | "\r\n" | "\r" | "\f")
 
+  // Values
+  private val variable            = P(CharIn('a' to 'z', 'A' to 'Z', "_").rep(1))
   private val boolean: P[Boolean] = P(True | False).!.map(_.toBoolean)
   private val number: P[Int]      = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toInt)
 
-  // Arithmetic expression parsing
-  private val arithmeticParentheses: P[Int] = P(
+  private val operand = (variable | boolean | number).!.map(OperandNode)
+
+  // Value nodes
+  private val variableNode: P[VarNode] = variable.rep(1).!.map(VarNode)
+  private val intLiteralExpression     = (&(number) ~ operand).!.map(v => IntLiteral(v.toInt))
+  private val boolLiteralExpression    = (&(boolean) ~ operand).!.map(v => BoolLiteral(v.toBoolean))
+
+  // Arithmetic expressions
+  private val arithmeticParentheses: P[Expression] = P(
     OpeningParentheses ~ &(number) ~/ addSub ~ ClosingParentheses
   )
-  private val arithmeticFactor: P[Int] = P(arithmeticParentheses | number)
-  private val divMul: P[Int] =
+  private val arithmeticFactor: P[Expression] = P(arithmeticParentheses | intLiteralExpression)
+  private val divMul: P[Expression] =
     P(arithmeticFactor ~ (CharIn(MultiplyOp + DivideOp).! ~/ arithmeticFactor).rep)
       .map(evalArithmeticExpression)
-  private val addSub: P[Int] =
-    P(divMul ~ (CharIn(AddOp + SubtractOp).! ~/ divMul).rep).map(evalArithmeticExpression)
-  private val arithmeticExprNode: core.Parser[NumericExprNode, Char, String] =
-    P(addSub).map(NumericExprNode)
+  private val addSub: P[Expression] =
+    P(divMul ~ (CharIn(PlusOp + MinusOp).! ~/ divMul).rep).map(evalArithmeticExpression)
 
-  // Logical expression parsing
-  private val logicalParentheses: P[Boolean] = P(
-    OpeningParentheses ~ &(True | False) ~/ orExpr ~ ClosingParentheses
-  )
-  private val logicalFactor: P[Boolean] = P(logicalParentheses | boolean)
-  private val andExpr: P[Boolean] =
-    P(logicalFactor ~ (AndOp.! ~/ logicalFactor).rep).map(evalLogicalExpression)
-  private val orExpr: P[Boolean] =
-    P(andExpr ~ (OrOp.! ~/ andExpr).rep).map(evalLogicalExpression)
-  private val logicalExprNode: core.Parser[BooleanExprNode, Char, String] =
-    P(orExpr).map(BooleanExprNode)
+  // Logical expressions
+  private val orExpression =
+    (boolLiteralExpression ~ OrOp ~ boolLiteralExpression).map(v => BoolExpression(v._1, v._2))
 
-  // Any string that contains lowercase, uppercase characters or underscore
-  private val identNode: P[VarNode] = P(CharIn('a' to 'z', 'A' to 'Z', "_").rep(1).!.map(VarNode))
-
-  // Parsing rules
-
-  private val expressionNode = logicalExprNode | arithmeticExprNode
-
-  private val exprRule = P(eol.? ~ expressionNode ~ eol)
-
-  /*
-   Assigns an expression.
-   Example of literal assignment: X = 5
-   Example of expression assignment: X = 3 + 6
-   or: x = true and false
-   */
-  private val varRule = P(
-    eol.? ~ identNode ~ AssignmentChar ~ expressionNode ~ eol
-  )
-
-  /*
-   Prints either a variable or an expression
-   Example of variable printing: print X
-   Example of expression printing: print 5 + 3
-   */
-  private val printRule = P(eol.? ~ Print ~ (identNode | expressionNode) ~ eol)
+  private val expression = addSub | intLiteralExpression | boolLiteralExpression
 
   // Statements
-  private val expressionStatement = exprRule.map(ExprStatement)
-  private val assignmentStatement = varRule.map(v => AssignmentStatement(v._1, v._2))
-  private val printStatement      = printRule.map(PrintStatement)
-  private val parsedStatement     = P(expressionStatement | assignmentStatement | printStatement)
+  private val intVarAssignmentStatement =
+    (eol.? ~ variableNode ~ AssignmentChar ~ addSub ~ eol)
+      .map(v => AssignmentStatement(v._1, v._2))
 
-  private def evalArithmeticExpression(tree: (Int, Seq[(String, Int)])): Int = {
+  private val boolVarVarAssignmentStatement =
+    (eol.? ~ variableNode ~ AssignmentChar ~ (orExpression | boolLiteralExpression) ~ eol)
+      .map(v => AssignmentStatement(v._1, v._2))
+
+  private val arithmeticStatement = (eol.? ~ addSub ~ eol).map(ArithmeticStatement)
+  private val printStatement      = (eol.? ~ Print ~ expression ~ eol).map(PrintStatement)
+
+  private val statements = arithmeticStatement | printStatement | intVarAssignmentStatement | boolVarVarAssignmentStatement
+
+  private def evalArithmeticExpression(
+      tree: (Expression, Seq[(String, Expression)])
+  ): Expression = {
     val (base, ops) = tree
     ops.foldLeft(base) {
       case (left, (op, right)) =>
         op match {
-          case AddOp      => left + right
-          case SubtractOp => left - right
-          case MultiplyOp => left * right
-          case DivideOp   => left / right
-        }
-    }
-  }
-
-  private def evalLogicalExpression(tree: (Boolean, Seq[(String, Boolean)])): Boolean = {
-    val (base, ops) = tree
-    ops.foldLeft(base) {
-      case (left, (op, right)) =>
-        op match {
-          case AndOp => left && right
-          case OrOp  => left || right
+          case PlusOp     => PlusExpression(left, right)
+          case MinusOp    => MinusExpression(left, right)
+          case MultiplyOp => MultiplyExpression(left, right)
+          case DivideOp   => DivideExpression(left, right)
         }
     }
   }
 
   def parseLines(lines: Seq[String]): Program =
     lines
-      .map((s: String) => parsedStatement.parse(s))
+      .map((s: String) => statements.parse(s))
       .collect {
         case stmt: fastparse.core.Parsed.Success[Statement, _, _] => stmt.value
         case failure: fastparse.core.Parsed.Failure[_, _]         => ErrorStatement(failure.toString())
       }
       .foldLeft(Program(Vector.empty[Statement]))(
-        (coll, statement) => Program(coll.statements :+ statement)
+        (coll, stmt) => Program(coll.statements :+ stmt)
       )
 
 }

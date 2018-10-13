@@ -23,8 +23,8 @@ object Identifier {
 
   object InfixOperator {
     val EqualsOp           = "=="
-    val AddOp              = "+"
-    val SubtractOp         = "-"
+    val PlusOp             = "+"
+    val MinusOp            = "-"
     val DivideOp           = "/"
     val MultiplyOp         = "*"
     val GreaterThanOp      = ">"

@@ -17,18 +17,27 @@
 package rs.bob
 
 object Ast {
-  sealed trait Node {
-    val value: Any
-  }
-  case class VarNode(value: String)          extends Node
-  case class NumericExprNode(value: Int)     extends Node
-  case class BooleanExprNode(value: Boolean) extends Node
 
-  sealed trait Statement
-  case class ErrorStatement(error: String)                     extends Statement
-  case class ExprStatement(node: Node)                         extends Statement
-  case class AssignmentStatement(varNode: VarNode, node: Node) extends Statement
-  case class PrintStatement(node: Node)                        extends Statement
+  sealed trait Node
 
-  case class Program(statements: Vector[Statement])
+  case class VarNode(value: String)  extends Node
+  case class OperandNode(value: Any) extends Node
+
+  sealed trait Expression                                            extends Node
+  case class PlusExpression(left: Expression, right: Expression)     extends Expression
+  case class MultiplyExpression(left: Expression, right: Expression) extends Expression
+  case class MinusExpression(left: Expression, right: Expression)    extends Expression
+  case class DivideExpression(left: Expression, right: Expression)   extends Expression
+  case class BoolExpression(left: Expression, right: Expression)     extends Expression
+  case class IntLiteral(value: Int)                                  extends Expression
+  case class BoolLiteral(value: Boolean)                             extends Expression
+
+  sealed trait Statement                                                   extends Node
+  case class AssignmentStatement(varNode: VarNode, expression: Expression) extends Statement
+  case class ArithmeticStatement(expression: Expression)                   extends Statement
+  case class BoolStatement(expression: Expression)                         extends Statement
+  case class PrintStatement(expression: Expression)                        extends Statement
+
+  case class ErrorStatement(error: String) extends Statement
+  case class Program(statements: Seq[Statement])
 }
