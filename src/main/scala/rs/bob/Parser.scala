@@ -23,6 +23,7 @@ object Parser {
   import Keyword._
   import Identifier._
   import Identifier.InfixOperator._
+  import Identifier.PrefixOperator._
   import Ast._
 
   val White: WhitespaceApi.Wrapper = WhitespaceApi.Wrapper {
@@ -35,48 +36,57 @@ object Parser {
 
   // Values
   private val variable            = P(CharIn('a' to 'z', 'A' to 'Z', "_").rep(1))
-  private val boolean: P[Boolean] = P(True | False).!.map(_.toBoolean)
+  private val boolean: P[Boolean] = P(True | False).!.map(v => v.toBoolean)
   private val number: P[Int]      = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toInt)
-
-  private val operand = (variable | boolean | number).!.map(OperandNode)
 
   // Value nodes
   private val variableNode: P[VarNode] = variable.rep(1).!.map(VarNode)
-  private val intLiteralExpression     = (&(number) ~ operand).!.map(v => IntLiteral(v.toInt))
-  private val boolLiteralExpression    = (&(boolean) ~ operand).!.map(v => BoolLiteral(v.toBoolean))
+  private val intLiteralExpression     = (&(number) ~ number).!.map(v => IntLiteral(v.toInt))
+  private val boolLiteralExpression    = (&(boolean) ~ boolean).!.map(v => BoolLiteral(v.toBoolean))
 
   // Arithmetic expressions
   private val arithmeticParentheses: P[Expression] = P(
-    OpeningParentheses ~ &(number) ~/ addSub ~ ClosingParentheses
+    OpeningParentheses ~ &(number) ~/ addSubExpr ~ ClosingParentheses
   )
   private val arithmeticFactor: P[Expression] = P(arithmeticParentheses | intLiteralExpression)
-  private val divMul: P[Expression] =
+  private val divMulExpr: P[Expression] =
     P(arithmeticFactor ~ (CharIn(MultiplyOp + DivideOp).! ~/ arithmeticFactor).rep)
-      .map(evalArithmeticExpression)
-  private val addSub: P[Expression] =
-    P(divMul ~ (CharIn(PlusOp + MinusOp).! ~/ divMul).rep).map(evalArithmeticExpression)
+      .map(mapToExpression)
+  private val addSubExpr: P[Expression] =
+    P(divMulExpr ~ (CharIn(PlusOp + MinusOp).! ~/ divMulExpr).rep).map(mapToExpression)
 
   // Logical expressions
-  private val orExpression =
-    (boolLiteralExpression ~ OrOp ~ boolLiteralExpression).map(v => BoolExpression(v._1, v._2))
+  private val logicalParentheses: P[Expression] = P(
+    NotOp.? ~ OpeningParentheses ~ &(boolean) ~/ orExpr ~ ClosingParentheses
+  )
+  private val logicalFactor: P[Expression] = P(notExpr | logicalParentheses | boolLiteralExpression)
+  private val andExpr: P[Expression] =
+    P(logicalFactor ~ (AndOp.! ~/ logicalFactor).rep)
+      .map(mapToExpression)
+  private val orExpr: P[Expression] =
+    P(andExpr ~ (OrOp.! ~/ andExpr).rep).map(mapToExpression)
+  private val notExpr: P[Expression] =
+    P(NotOp.! ~ (logicalParentheses | boolLiteralExpression)).map(v => NotExpression(v._2))
+  private val boolExpr = orExpr | notExpr
 
-  private val expression = addSub | intLiteralExpression | boolLiteralExpression
+  private val expression = addSubExpr | boolExpr | intLiteralExpression | boolLiteralExpression
 
   // Statements
   private val intVarAssignmentStatement =
-    (eol.? ~ variableNode ~ AssignmentChar ~ addSub ~ eol)
+    (eol.? ~ variableNode ~ AssignmentChar ~ addSubExpr ~ eol)
       .map(v => AssignmentStatement(v._1, v._2))
 
   private val boolVarVarAssignmentStatement =
-    (eol.? ~ variableNode ~ AssignmentChar ~ (orExpression | boolLiteralExpression) ~ eol)
+    (eol.? ~ variableNode ~ AssignmentChar ~ boolExpr ~ eol)
       .map(v => AssignmentStatement(v._1, v._2))
 
-  private val arithmeticStatement = (eol.? ~ addSub ~ eol).map(ArithmeticStatement)
+  private val arithmeticStatement = (eol.? ~ addSubExpr ~ eol).map(ArithmeticStatement)
+  private val boolStatement       = (eol.? ~ boolExpr ~ eol).map(BoolStatement)
   private val printStatement      = (eol.? ~ Print ~ expression ~ eol).map(PrintStatement)
 
-  private val statements = arithmeticStatement | printStatement | intVarAssignmentStatement | boolVarVarAssignmentStatement
+  private val statements = arithmeticStatement | boolStatement | printStatement | intVarAssignmentStatement | boolVarVarAssignmentStatement
 
-  private def evalArithmeticExpression(
+  private def mapToExpression(
       tree: (Expression, Seq[(String, Expression)])
   ): Expression = {
     val (base, ops) = tree
@@ -87,6 +97,8 @@ object Parser {
           case MinusOp    => MinusExpression(left, right)
           case MultiplyOp => MultiplyExpression(left, right)
           case DivideOp   => DivideExpression(left, right)
+          case AndOp      => AndExpression(left, right)
+          case OrOp       => OrExpression(left, right)
         }
     }
   }
