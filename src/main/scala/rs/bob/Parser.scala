@@ -16,7 +16,7 @@
 
 package rs.bob
 
-import fastparse.WhitespaceApi
+import fastparse.{ WhitespaceApi, all }
 import fastparse.all._
 
 object Parser {
@@ -34,17 +34,42 @@ object Parser {
 
   private val eol: P[Unit] = P("\n" | "" | "\r\n" | "\r" | "\f")
 
-  // Values
-  private val variable            = P(CharIn('a' to 'z', 'A' to 'Z', "_").rep(1))
+  //
+  /**
+    * Any identifier that contains upper cases, lower cases and underscores.
+    */
+  private val variable = P(CharIn('a' to 'z', 'A' to 'Z', "_").rep(1))
+
+  /**
+    * Any identifier that contains literals that represent logical true and false.
+    */
   private val boolean: P[Boolean] = P(True | False).!.map(v => v.toBoolean)
-  private val number: P[Int]      = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toInt)
+
+  /**
+    * Any positive or negative number.
+    */
+  private val number: P[Int] = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toInt)
 
   // Value nodes
   private val variableNode: P[VarNode] = variable.rep(1).!.map(VarNode)
-  private val intLiteralExpression     = (&(number) ~ number).!.map(v => IntLiteral(v.toInt))
-  private val boolLiteralExpression    = (&(boolean) ~ boolean).!.map(v => BoolLiteral(v.toBoolean))
 
-  // Arithmetic expressions
+  /**
+    * Integer literal expression is any expression that
+    * begins with the number and contains only numbers.
+    */
+  private val intLiteralExpression = (&(number) ~ number).!.map(v => IntLiteral(v.toInt))
+
+  /**
+    * Bool literal expression is any expression that begins with bool literals (true or false) and contains only
+    * one of given bool literals.
+    */
+  private val boolLiteralExpression = (&(boolean) ~ boolean).!.map(v => BoolLiteral(v.toBoolean))
+
+  /** Arithmetic expressions parsers
+    *
+    * Implementation of descent recursive parser for arithmetic operations.
+    * Supports multiplication, addition, subtraction and division of integers.
+    */
   private val arithmeticParentheses: P[Expression] = P(
     OpeningParentheses ~ &(number) ~/ addSubExpr ~ ClosingParentheses
   )
@@ -54,8 +79,14 @@ object Parser {
       .map(mapToExpression)
   private val addSubExpr: P[Expression] =
     P(divMulExpr ~ (CharIn(PlusOp + MinusOp).! ~/ divMulExpr).rep).map(mapToExpression)
+  private val arithmeticExpr = addSubExpr
 
-  // Logical expressions
+  /**
+    * Logical expressions parser
+    *
+    * Implementation of descent recursive parser for logical operations.
+    * Supports AND, OR and NOT operations.
+    */
   private val logicalParentheses: P[Expression] = P(
     NotOp.? ~ OpeningParentheses ~ &(boolean) ~/ orExpr ~ ClosingParentheses
   )
@@ -69,20 +100,66 @@ object Parser {
     P(NotOp.! ~ (logicalParentheses | boolLiteralExpression)).map(v => NotExpression(v._2))
   private val boolExpr = orExpr | notExpr
 
-  private val expression = addSubExpr | boolExpr | intLiteralExpression | boolLiteralExpression
+  /**
+    * Represents aggregation of all other expressions.
+    */
+  private val expressions = arithmeticExpr | boolExpr | intLiteralExpression | boolLiteralExpression
 
   // Statements
+
+  /**
+    * Integer assignment statement represents any statement that
+    * contains a variable identifier on the "left hand side" and an arithmetic expression
+    * on the "right hand side". Variables are untyped.
+    *
+    * Examples:
+    *
+    * Assignment of a simple integer: x = 3
+    * Assignment of a more complex integer expression: x = (2 + 2) * 5
+    */
   private val intVarAssignmentStatement =
-    (eol.? ~ variableNode ~ AssignmentChar ~ addSubExpr ~ eol)
+    (eol.? ~ variableNode ~ AssignmentChar ~ arithmeticExpr ~ eol)
       .map(v => AssignmentStatement(v._1, v._2))
 
+  /**
+    * Boolean assignment statement represents any statement that contains a variable identifier
+    * on the "left hand side" and a boolean expression on the "right hand side". Also untyped.
+    *
+    * Examples:
+    *
+    * Assignment of a simple bool literal: x = true
+    * Assignment of a more complex boolean expression: x = not false and true
+    */
   private val boolVarVarAssignmentStatement =
     (eol.? ~ variableNode ~ AssignmentChar ~ boolExpr ~ eol)
       .map(v => AssignmentStatement(v._1, v._2))
 
-  private val arithmeticStatement = (eol.? ~ addSubExpr ~ eol).map(ArithmeticStatement)
-  private val boolStatement       = (eol.? ~ boolExpr ~ eol).map(BoolStatement)
-  private val printStatement      = (eol.? ~ Print ~ expression ~ eol).map(PrintStatement)
+  /**
+    * Simple arithmetic statement that can be evaluated.
+    * Examples:
+    *
+    * 3 * 2 + 2
+    *
+    * It will be evaluated, but assigned to nothing.
+    */
+  private val arithmeticStatement = (eol.? ~ arithmeticExpr ~ eol).map(ArithmeticStatement)
+
+  /**
+    * Simple logical statement that can be evaluated.
+    *
+    * Examples:
+    *
+    * true or false
+    *
+    * Evaluated, but not assigned.
+    */
+  private val boolStatement = (eol.? ~ boolExpr ~ eol).map(BoolStatement)
+
+  /**
+    * Represents statement ought to be printed. Contains a keyword for printing
+    * and expression which is evaluated and ready for printing.
+    */
+  private val printStatement = (eol.? ~ Print ~ expressions ~ eol).map(PrintStatement)
 
   private val statements = arithmeticStatement | boolStatement | printStatement | intVarAssignmentStatement | boolVarVarAssignmentStatement
 
@@ -103,6 +180,12 @@ object Parser {
     }
   }
 
+  /**
+    * Parses textual input into an AST.
+    *
+    * @param lines of the code - parses statement after the statement
+    * @return AST representation of currently parsed program
+    */
   def parseLines(lines: Seq[String]): Program =
     lines
       .map((s: String) => statements.parse(s))
