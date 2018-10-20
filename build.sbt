@@ -6,7 +6,13 @@ lazy val bob =
   project
     .in(file("."))
     .enablePlugins(AutomateHeaderPlugin)
+    .aggregate(core)
+    .dependsOn(core)
     .settings(settings)
+
+lazy val core =
+  project
+    .in(file("core"))
     .settings(
       libraryDependencies ++= Seq(
         library.fastparse,

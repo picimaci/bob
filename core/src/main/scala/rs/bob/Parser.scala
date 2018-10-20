@@ -16,7 +16,7 @@
 
 package rs.bob
 
-import fastparse.{ WhitespaceApi, all }
+import fastparse.WhitespaceApi
 import fastparse.all._
 
 object Parser {

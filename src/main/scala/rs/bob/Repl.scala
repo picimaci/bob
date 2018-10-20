@@ -17,7 +17,7 @@
 package rs.bob
 import scala.io.StdIn
 
-object Main {
+object Repl {
 
   def main(args: Array[String]): Unit = {
     import Parser._
