@@ -16,7 +16,7 @@
 
 package rs.bob
 
-import fastparse.WhitespaceApi
+import fastparse.{ WhitespaceApi, all }
 import fastparse.all._
 
 object Parser {
@@ -79,6 +79,9 @@ object Parser {
       .map(mapToExpression)
   private val addSubExpr: P[Expression] =
     P(divMulExpr ~ (CharIn(PlusOp + MinusOp).! ~/ divMulExpr).rep).map(mapToExpression)
+  private val comparisonExpr = P(
+    addSubExpr ~ ((NotEqualsOp | EqualsOp | GreaterThanEqualOp | LessThanEqualOp | GreaterThanOp | LessThanOp).! ~/ addSubExpr).rep
+  ).map(mapToExpression)
   private val arithmeticExpr = addSubExpr
 
   /**
@@ -90,7 +93,9 @@ object Parser {
   private val logicalParentheses: P[Expression] = P(
     NotOp.? ~ OpeningParentheses ~ &(boolean) ~/ orExpr ~ ClosingParentheses
   )
-  private val logicalFactor: P[Expression] = P(notExpr | logicalParentheses | boolLiteralExpression)
+  private val logicalFactor: P[Expression] = P(
+    notExpr | logicalParentheses | boolLiteralExpression | comparisonExpr
+  )
   private val andExpr: P[Expression] =
     P(logicalFactor ~ (AndOp.! ~/ logicalFactor).rep)
       .map(mapToExpression)
@@ -103,49 +108,28 @@ object Parser {
   /**
     * Represents aggregation of all other expressions.
     */
-  private val expressions = arithmeticExpr | boolExpr | intLiteralExpression | boolLiteralExpression
+  private val expression = boolExpr | arithmeticExpr
 
   // Statements
 
   /**
-    * Integer assignment statement represents any statement that
-    * contains a variable identifier on the "left hand side" and an arithmetic expression
+    * Integer or boolean assignment statement represents any statement that
+    * contains a variable identifier on the "left hand side" and an arithmetic or logical expression
     * on the "right hand side". Variables are untyped.
     *
     * Examples:
     *
+    * Assignment of a simple boolean: x = true
+    * Assignment of a more complex boolean expression: x = 3 + 2 > 5 and false
     * Assignment of a simple integer: x = 3
     * Assignment of a more complex integer expression: x = (2 + 2) * 5
     */
-  private val intVarAssignmentStatement =
-    (eol.? ~ variableNode ~ AssignmentChar ~ arithmeticExpr ~ eol)
+  private val varAssignmentStatement =
+    (eol.? ~ variableNode ~ AssignmentChar ~ expression ~ eol)
       .map(v => AssignmentStatement(v._1, v._2))
 
   /**
-    * Boolean assignment statement represents any statement that contains a variable identifier
-    * on the "left hand side" and a boolean expression on the "right hand side". Also untyped.
-    *
-    * Examples:
-    *
-    * Assignment of a simple bool literal: x = true
-    * Assignment of a more complex boolean expression: x = not false and true
-    */
-  private val boolVarVarAssignmentStatement =
-    (eol.? ~ variableNode ~ AssignmentChar ~ boolExpr ~ eol)
-      .map(v => AssignmentStatement(v._1, v._2))
-
-  /**
-    * Simple arithmetic statement that can be evaluated.
-    * Examples:
-    *
-    * 3 * 2 + 2
-    *
-    * It will be evaluated, but assigned to nothing.
-    */
-  private val arithmeticStatement = (eol.? ~ arithmeticExpr ~ eol).map(ArithmeticStatement)
-
-  /**
-    * Simple logical statement that can be evaluated.
+    * Statement that can be evaluated.
     *
     * Examples:
     *
@@ -153,15 +137,15 @@ object Parser {
     *
     * Evaluated, but not assigned.
     */
-  private val boolStatement = (eol.? ~ boolExpr ~ eol).map(BoolStatement)
+  private val simpleStatement = (eol.? ~ expression ~ eol).map(SimpleStatement)
 
   /**
     * Represents statement ought to be printed. Contains a keyword for printing
     * and expression which is evaluated and ready for printing.
     */
-  private val printStatement = (eol.? ~ Print ~ expressions ~ eol).map(PrintStatement)
+  private val printStatement = (eol.? ~ Print ~ expression ~ eol).map(PrintStatement)
 
-  private val statements = arithmeticStatement | boolStatement | printStatement | intVarAssignmentStatement | boolVarVarAssignmentStatement
+  private val statements = simpleStatement | printStatement | varAssignmentStatement
 
   private def mapToExpression(
       tree: (Expression, Seq[(String, Expression)])
@@ -170,12 +154,18 @@ object Parser {
     ops.foldLeft(base) {
       case (left, (op, right)) =>
         op match {
-          case PlusOp     => PlusExpression(left, right)
-          case MinusOp    => MinusExpression(left, right)
-          case MultiplyOp => MultiplyExpression(left, right)
-          case DivideOp   => DivideExpression(left, right)
-          case AndOp      => AndExpression(left, right)
-          case OrOp       => OrExpression(left, right)
+          case PlusOp             => PlusExpression(left, right)
+          case MinusOp            => MinusExpression(left, right)
+          case MultiplyOp         => MultiplyExpression(left, right)
+          case DivideOp           => DivideExpression(left, right)
+          case AndOp              => AndExpression(left, right)
+          case OrOp               => OrExpression(left, right)
+          case GreaterThanOp      => GreaterThanExpression(left, right)
+          case LessThanOp         => LessThanExpression(left, right)
+          case EqualsOp           => EqualsExpression(left, right)
+          case NotEqualsOp        => NotEqualsExpression(left, right)
+          case GreaterThanEqualOp => GreaterThanEqualsExpression(left, right)
+          case LessThanEqualOp    => LessThanEqualsExpression(left, right)
         }
     }
   }

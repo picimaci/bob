@@ -33,13 +33,19 @@ object Ast {
   case class AndExpression(left: Expression, right: Expression) extends Expression
   case class NotExpression(expression: Expression)              extends Expression
 
+  case class GreaterThanExpression(left: Expression, right: Expression)       extends Expression
+  case class LessThanExpression(left: Expression, right: Expression)          extends Expression
+  case class GreaterThanEqualsExpression(left: Expression, right: Expression) extends Expression
+  case class LessThanEqualsExpression(left: Expression, right: Expression)    extends Expression
+  case class EqualsExpression(left: Expression, right: Expression)            extends Expression
+  case class NotEqualsExpression(left: Expression, right: Expression)         extends Expression
+
   case class IntLiteral(value: Int)      extends Expression
   case class BoolLiteral(value: Boolean) extends Expression
 
   sealed trait Statement                                                   extends Node
   case class AssignmentStatement(varNode: VarNode, expression: Expression) extends Statement
-  case class ArithmeticStatement(expression: Expression)                   extends Statement
-  case class BoolStatement(expression: Expression)                         extends Statement
+  case class SimpleStatement(expression: Expression)                       extends Statement
   case class PrintStatement(expression: Expression)                        extends Statement
 
   case class ErrorStatement(error: String) extends Statement

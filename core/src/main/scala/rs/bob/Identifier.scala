@@ -23,6 +23,7 @@ object Identifier {
 
   object InfixOperator {
     val EqualsOp           = "=="
+    val NotEqualsOp        = "=/="
     val PlusOp             = "+"
     val MinusOp            = "-"
     val DivideOp           = "/"
@@ -36,6 +37,6 @@ object Identifier {
   }
 
   object PrefixOperator {
-    val NotOp = "not"
+    val NotOp = "!"
   }
 }
