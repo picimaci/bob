@@ -20,10 +20,12 @@ object Ast {
 
   sealed trait Node
 
-  case class VarNode(value: String)  extends Node
-  case class OperandNode(value: Any) extends Node
+  case class VariableNode(varName: String) extends Node
 
-  sealed trait Expression                                            extends Node
+  sealed trait Expression extends Node
+
+  case class VariableLiteral(varName: String) extends Expression
+
   case class PlusExpression(left: Expression, right: Expression)     extends Expression
   case class MultiplyExpression(left: Expression, right: Expression) extends Expression
   case class MinusExpression(left: Expression, right: Expression)    extends Expression
@@ -43,10 +45,10 @@ object Ast {
   case class IntLiteral(value: Int)      extends Expression
   case class BoolLiteral(value: Boolean) extends Expression
 
-  sealed trait Statement                                                   extends Node
-  case class AssignmentStatement(varNode: VarNode, expression: Expression) extends Statement
-  case class SimpleStatement(expression: Expression)                       extends Statement
-  case class PrintStatement(expression: Expression)                        extends Statement
+  sealed trait Statement                                                        extends Node
+  case class AssignmentStatement(varNode: VariableNode, expression: Expression) extends Statement
+  case class SimpleStatement(expression: Expression)                            extends Statement
+  case class PrintStatement(expression: Expression)                             extends Statement
 
   case class ErrorStatement(error: String) extends Statement
   case class Program(statements: Seq[Statement])

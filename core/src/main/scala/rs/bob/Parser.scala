@@ -51,7 +51,7 @@ object Parser {
   private val number: P[Int] = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toInt)
 
   // Value nodes
-  private val variableNode: P[VarNode] = variable.rep(1).!.map(VarNode)
+  private val variableNode: P[VariableNode] = variable.rep(1).!.map(VariableNode)
 
   /**
     * Integer literal expression is any expression that
@@ -65,6 +65,12 @@ object Parser {
     */
   private val boolLiteralExpression = (&(boolean) ~ boolean).!.map(v => BoolLiteral(v.toBoolean))
 
+  /**
+    * Variable literal represents a variable in an expression in the role of
+    * an identifier ought to be replaced by an integer or boolean literal.
+    */
+  private val variableLiteral = (variableNode ~ !AssignmentChar).!.map(VariableLiteral)
+
   /** Arithmetic expressions parsers
     *
     * Implementation of descent recursive parser for arithmetic operations.
@@ -73,7 +79,9 @@ object Parser {
   private val arithmeticParentheses: P[Expression] = P(
     OpeningParentheses ~ &(number) ~/ addSubExpr ~ ClosingParentheses
   )
-  private val arithmeticFactor: P[Expression] = P(arithmeticParentheses | intLiteralExpression)
+  private val arithmeticFactor: P[Expression] = P(
+    arithmeticParentheses | intLiteralExpression | variableLiteral
+  )
   private val divMulExpr: P[Expression] =
     P(arithmeticFactor ~ (CharIn(MultiplyOp + DivideOp).! ~/ arithmeticFactor).rep)
       .map(mapToExpression)
@@ -94,7 +102,7 @@ object Parser {
     NotOp.? ~ OpeningParentheses ~ &(boolean) ~/ orExpr ~ ClosingParentheses
   )
   private val logicalFactor: P[Expression] = P(
-    notExpr | logicalParentheses | boolLiteralExpression | comparisonExpr
+    notExpr | logicalParentheses | boolLiteralExpression | comparisonExpr | variableLiteral
   )
   private val andExpr: P[Expression] =
     P(logicalFactor ~ (AndOp.! ~/ logicalFactor).rep)
@@ -123,19 +131,22 @@ object Parser {
     * Assignment of a more complex boolean expression: x = 3 + 2 > 5 and false
     * Assignment of a simple integer: x = 3
     * Assignment of a more complex integer expression: x = (2 + 2) * 5
+    *
+    * Assignment of an integer expression with a variable: x = (2 + 2) * z
     */
   private val varAssignmentStatement =
     (eol.? ~ variableNode ~ AssignmentChar ~ expression ~ eol)
       .map(v => AssignmentStatement(v._1, v._2))
 
   /**
-    * Statement that can be evaluated.
+    * Statement that can be evaluated but it's not assigned
+    * to any variable.
     *
     * Examples:
     *
     * true or false
+    * 5 + 2 * 3
     *
-    * Evaluated, but not assigned.
     */
   private val simpleStatement = (eol.? ~ expression ~ eol).map(SimpleStatement)
 
@@ -179,9 +190,9 @@ object Parser {
   def parseLines(lines: Seq[String]): Program =
     lines
       .map((s: String) => statements.parse(s))
-      .collect {
+      .map {
         case stmt: fastparse.core.Parsed.Success[Statement, _, _] => stmt.value
-        case failure: fastparse.core.Parsed.Failure[_, _]         => ErrorStatement(failure.toString())
+        case failure: fastparse.core.Parsed.Failure[_, _]         => ErrorStatement(failure.msg)
       }
       .foldLeft(Program(Vector.empty[Statement]))(
         (coll, stmt) => Program(coll.statements :+ stmt)
