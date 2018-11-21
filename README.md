@@ -1,6 +1,16 @@
 # bob #
 
-Welcome to bob!
+Basic expression evaluation:
+
+`>> 3 + 2 * 2`
+
+Variable assignment:
+
+`>> x = 3 * 2`
+
+Printing expression or value:
+
+`>> print 3 * 2`
 
 ## Contribution policy ##
 
