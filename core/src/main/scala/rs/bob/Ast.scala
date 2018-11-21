@@ -46,6 +46,7 @@ object Ast {
   case class BoolLiteral(value: Boolean) extends Expression
 
   sealed trait Statement                                                        extends Node
+  case object EmptyStatement extends Statement
   case class AssignmentStatement(varNode: VariableNode, expression: Expression) extends Statement
   case class SimpleStatement(expression: Expression)                            extends Statement
   case class PrintStatement(expression: Expression)                             extends Statement

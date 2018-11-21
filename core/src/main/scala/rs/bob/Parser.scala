@@ -16,7 +16,7 @@
 
 package rs.bob
 
-import fastparse.{ WhitespaceApi, all }
+import fastparse.WhitespaceApi
 import fastparse.all._
 
 object Parser {
@@ -32,13 +32,14 @@ object Parser {
 
   import White.parserApi
 
-  private val eol: P[Unit] = P("\n" | "" | "\r\n" | "\r" | "\f")
+  private val eol: P[Unit] = P("\n".rep | "".rep | "\r\n".rep | "\r".rep | "\f".rep)
 
-  //
+  private val keyword = (OrOp + " ") | (AndOp + " ") | (Print + " ")
+
   /**
     * Any identifier that contains upper cases, lower cases and underscores.
     */
-  private val variable = P(CharIn('a' to 'z', 'A' to 'Z', "_").rep(1))
+  private val variable = P(!keyword ~ CharIn('a' to 'z', 'A' to 'Z', "_").rep(1))
 
   /**
     * Any identifier that contains literals that represent logical true and false.
@@ -51,7 +52,7 @@ object Parser {
   private val number: P[Int] = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toInt)
 
   // Value nodes
-  private val variableNode: P[VariableNode] = variable.rep(1).!.map(VariableNode)
+  private val variableNode: P[VariableNode] = variable.!.map(VariableNode)
 
   /**
     * Integer literal expression is any expression that
@@ -77,7 +78,7 @@ object Parser {
     * Supports multiplication, addition, subtraction and division of integers.
     */
   private val arithmeticParentheses: P[Expression] = P(
-    OpeningParentheses ~ &(number) ~/ addSubExpr ~ ClosingParentheses
+    OpeningParentheses ~ &(number) ~/ comparisonExpr ~ ClosingParentheses
   )
   private val arithmeticFactor: P[Expression] = P(
     arithmeticParentheses | intLiteralExpression | variableLiteral
@@ -154,7 +155,7 @@ object Parser {
     * Represents statement ought to be printed. Contains a keyword for printing
     * and expression which is evaluated and ready for printing.
     */
-  private val printStatement = (eol.? ~ Print ~ expression ~ eol).map(PrintStatement)
+  private val printStatement = (eol.? ~ (Print + " ") ~ expression ~ eol).map(PrintStatement)
 
   private val statements = simpleStatement | printStatement | varAssignmentStatement
 
