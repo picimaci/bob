@@ -1,4 +1,4 @@
-# bob #
+# bob [![Build Status](https://travis-ci.org/BranislavLazic/bob.svg?branch=master)](https://travis-ci.org/BranislavLazic/bob)
 
 Basic expression evaluation:
 
