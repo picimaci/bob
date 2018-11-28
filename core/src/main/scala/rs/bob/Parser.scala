@@ -34,7 +34,9 @@ object Parser {
 
   private val eol: P[Unit] = P("\n".rep | "".rep | "\r\n".rep | "\r".rep | "\f".rep)
 
-  private val keyword = (OrOp + " ") | (AndOp + " ") | (Print + " ")
+  private val ws = " "
+
+  private val keyword = (OrOp + ws) | (AndOp + ws) | (Print + ws)
 
   /**
     * Any identifier that contains upper cases, lower cases and underscores.
@@ -155,7 +157,7 @@ object Parser {
     * Represents statement ought to be printed. Contains a keyword for printing
     * and expression which is evaluated and ready for printing.
     */
-  private val printStatement = (eol.? ~ (Print + " ") ~ expression ~ eol).map(PrintStatement)
+  private val printStatement = (eol.? ~ (Print + ws) ~ expression ~ eol).map(PrintStatement)
 
   private val statements = simpleStatement | printStatement | varAssignmentStatement
 
